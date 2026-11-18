@@ -33,11 +33,19 @@ def add_log(msg):
             job_state["step"] = msg
 
 
-def run_pipeline_job(cfg_base, store, target, clips_count, auto_upload):
+def run_pipeline_job(cfg_base, store, target, clips_count, auto_upload, bgm_opts=None):
     import pipeline, main
     cfg = dict(cfg_base)
     if clips_count and clips_count > 0:
         cfg["clips_per_video"] = int(clips_count)
+    if bgm_opts:
+        cfg["bgm"] = dict(cfg.get("bgm", {}))
+        if "enabled" in bgm_opts:
+            cfg["bgm"]["enabled"] = bool(bgm_opts["enabled"])
+        if bgm_opts.get("mood"):
+            cfg["bgm"]["mood_override"] = bgm_opts["mood"]
+        if "volume" in bgm_opts and bgm_opts["volume"] is not None:
+            cfg["bgm"]["volume"] = float(bgm_opts["volume"])
 
     with job_lock:
         job_state["status"] = "running"
@@ -476,18 +484,29 @@ HTML_PAGE = """<!DOCTYPE html>
       </div>
 
       <!-- Parameters Row -->
-      <div class="settings-row" style="margin-top: 18px;">
-        <div style="width: 140px;">
+      <div class="settings-row" style="margin-top: 18px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="width: 120px;">
           <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">Clips count</label>
           <input type="number" id="clips-count" min="1" max="15" value="5" />
         </div>
-        <div style="margin-top: 22px;">
+        <div style="min-width: 200px;">
+          <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">🎵 Background Music</label>
+          <select id="bgm-mood" style="background: #111827; border: 1px solid var(--border); color: #f8fafc; border-radius: 6px; padding: 9px 12px; font-size: 13px; width: 100%; outline: none; cursor: pointer;">
+            <option value="auto">✨ Auto AI Mood Selection</option>
+            <option value="motivational">🔥 Motivational (Piano & Strings)</option>
+            <option value="dramatic">⚡ Dramatic (Cinematic Suspense)</option>
+            <option value="chill">☕ Chill (Calm Lofi)</option>
+            <option value="energetic">🚀 Energetic (Upbeat Beat)</option>
+            <option value="none">🚫 No BGM (Speech Only)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 10px;">
           <label class="checkbox-label">
             <input type="checkbox" id="auto-upload" />
             <span>Auto-schedule YouTube upload (after generation)</span>
           </label>
         </div>
-        <div style="margin-top: 18px; margin-left: auto;">
+        <div style="margin-left: auto; margin-bottom: 4px;">
           <button class="btn btn-primary" id="btn-generate" onclick="startGeneration()">
             <span>⚡ Generate Shorts</span>
           </button>
@@ -703,6 +722,11 @@ HTML_PAGE = """<!DOCTYPE html>
     async function startGeneration() {
       const clipsCount = parseInt(document.getElementById('clips-count').value) || 5;
       const autoUpload = document.getElementById('auto-upload').checked;
+      const bgmSelect = document.getElementById('bgm-mood') ? document.getElementById('bgm-mood').value : 'auto';
+      const bgmOpts = {
+        enabled: bgmSelect !== 'none',
+        mood: bgmSelect === 'auto' ? null : bgmSelect
+      };
 
       let target = '';
       if (activeTab === 'url') {
@@ -743,7 +767,7 @@ HTML_PAGE = """<!DOCTYPE html>
         const res = await fetch('/api/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ target, clips_count: clipsCount, auto_upload: autoUpload })
+          body: JSON.stringify({ target, clips_count: clipsCount, auto_upload: autoUpload, bgm: bgmOpts })
         });
         const d = await res.json();
         if (!d.ok) alert(d.error);
@@ -895,7 +919,10 @@ HTML_PAGE = """<!DOCTYPE html>
                   }
                 </div>
                 <div class="clip-body">
-                  ${c.hook ? `<div class="clip-hook">Hook: ${c.hook}</div>` : ''}
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+                    ${c.hook ? `<div class="clip-hook">Hook: ${c.hook}</div>` : ''}
+                    ${c.mood ? `<div class="clip-hook" style="background: rgba(129, 140, 248, 0.15); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.25);">🎵 ${c.mood.toUpperCase()}</div>` : ''}
+                  </div>
                   <div class="clip-title">${c.title || 'Clip ' + (idx + 1)}</div>
                   <div class="clip-tags">${tags}</div>
                   
@@ -1078,6 +1105,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             target = data.get("target", "").strip()
             clips_count = data.get("clips_count", 5)
             auto_upload = bool(data.get("auto_upload", False))
+            bgm_opts = data.get("bgm", {})
 
             if not target:
                 self.send_json({"ok": False, "error": "Video target zaroori hai"}, 400)
@@ -1085,7 +1113,7 @@ class StudioHandler(BaseHTTPRequestHandler):
 
             t = threading.Thread(
                 target=run_pipeline_job,
-                args=(self.cfg, self.store, target, clips_count, auto_upload),
+                args=(self.cfg, self.store, target, clips_count, auto_upload, bgm_opts),
                 daemon=True
             )
             t.start()

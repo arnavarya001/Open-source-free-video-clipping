@@ -9,11 +9,13 @@ Runs completely on your local computer — **zero paid cloud subscriptions, zero
 ## ✨ Features
 
 - **🌐 Modern Web Studio UI**: Interactive browser interface to paste links, drag-and-drop local videos, monitor real-time rendering logs, and preview generated shorts directly.
-- **🤖 Smart AI Moment Selection**: Uses Google Gemini AI to analyze full timestamped transcripts, find hooks, craft viral titles, and pick standalone viral moments.
+- **🤖 Smart AI Moment Selection**: Uses Google Gemini AI to analyze full timestamped transcripts, find hooks, craft viral titles, detect emotional tone/mood, and pick standalone viral moments.
+- **🎵 Mood-Matched Background Music (BGM)**: Automatically detects clip mood (`motivational`, `dramatic`, `chill`, `energetic`) and mixes royalty-free BGM ducked underneath speech with smooth audio fades so vocals remain crisp and loud.
 - **⚡ Local Fast Whisper Transcription**: Automatic speech-to-text with word-level timestamps using `faster-whisper` (supports Hindi, English, and 90+ languages).
 - **📐 9:16 Smart Dynamic Cropping**: Uses OpenCV facial detection to dynamically center the speaker in vertical video format.
-- **🎨 Word-by-Word Animated Captions**: Burns professional ASS subtitles with custom fonts, colors, and an eye-catching 3-second hook overlay.
+- **🎨 Viral Word-by-Word Subtitles**: Burns high-retention 2-words-per-line captions with bold typography (Impact/Arial), active word yellow glow & pop animation, plus a 3-second hook overlay on top.
 - **🚀 1-Click YouTube Auto-Schedule**: Connect your YouTube channel via Google OAuth and auto-schedule shorts at optimal posting slots (e.g. 09:00, 13:00, 19:00).
+- **🧹 Auto-Cleanup**: Automatically cleans up rendered local MP4s and temporary downloads once scheduled to protect disk space.
 - **🔄 Auto-Watch Mode (Set & Forget)**: Automatically polls your YouTube channel RSS feed or local `inbox/` folder and processes new uploads unattended.
 
 ---

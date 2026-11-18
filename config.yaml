@@ -13,18 +13,25 @@ clips_per_video: 5
 clip_min_sec: 20
 clip_max_sec: 58                    # Shorts ke liye 60 se kam rakho
 
-# --- Captions / edit ---
+# --- Captions & Viral Video Styling ---
 captions:
   enabled: true
-  font: Arial                       # Hindi ke liye Mac pe: "Kohinoor Devanagari"
-  font_size: 80
-  hook_font_size: 66
-  words_per_line: 3
-  uppercase: true                   # sirf English ke liye achha; Hindi ke liye false karo
-  highlight_color: "&H0000FFFF"     # yellow (BGR format)
-hook_text: true                     # top pe AI hook title (pehle 3 sec)
-face_tracking: true                 # face ke hisaab se crop (OpenCV)
-video_preset: veryfast              # ffmpeg speed: ultrafast ... slow
+  font: "Impact"                   # Viral bold font (Impact, Arial, Trebuchet MS, ya Hindi ke liye Kohinoor Devanagari)
+  font_size: 84
+  hook_font_size: 68
+  words_per_line: 2                # 2 words per line (Raj Shamani / viral reels pacing)
+  uppercase: true                  # uppercase English clips ke liye impactful hota hai
+  highlight_color: "&H0000FFFF"    # Yellow active word glow/highlight (BGR format)
+hook_text: true                    # top pe AI viral hook title (first 3.2 sec)
+face_tracking: true                # face ke hisaab se vertical 9:16 crop (OpenCV)
+video_preset: veryfast             # ffmpeg speed: ultrafast ... slow
+
+# --- Background Music (BGM) ---
+bgm:
+  enabled: true                    # Automatically add mood-matched background music
+  auto_mood: true                  # AI decides mood (motivational, dramatic, chill, energetic)
+  default_mood: "motivational"     # Fallback mood
+  volume: 0.12                     # BGM volume (0.05 - 0.25, speech clarity maintains)
 
 # --- Upload schedule ---
 schedule:

@@ -68,7 +68,8 @@ def process_source(cfg, store, sid, path, title=""):
         out = pipeline.render_clip(path, c, words, f"output/{sid}", i, cfg)
         store.add_clip({"id": f"{sid}_{i:02d}", "source": sid, "path": str(out),
                         "title": c.get("title", f"Short {i}"), "description": c.get("description", ""),
-                        "hashtags": c.get("hashtags", []), "status": "ready"})
+                        "hashtags": c.get("hashtags", []), "status": "ready",
+                        "mood": c.get("mood", "motivational")})
         n += 1
     store.mark_source(sid, "done", clips=n)
     return n
