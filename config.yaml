@@ -37,6 +37,10 @@ upload:
   made_for_kids: false
   default_tags: ["shorts"]
 
+# --- Auto Cleanup ---
+cleanup:
+  delete_after_upload: true         # upload hote hi output clips aur downloaded video delete karein (saves GBs of disk)
+
 # --- Auto mode (watch) ---
 watch:
   channel_id: ""                    # aapke channel ka ID (UC...) -- naya video aate hi auto process

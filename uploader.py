@@ -1,5 +1,5 @@
 """YouTube upload with scheduled publish time."""
-import json
+import json, shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,6 +67,49 @@ def get_service():
     return build("youtube", "v3", credentials=creds)
 
 
+def cleanup_after_upload(clip, store, cfg=None):
+    """Deletes output clip and source download file once uploaded to YouTube."""
+    if cfg and not cfg.get("cleanup", {}).get("delete_after_upload", True):
+        return
+
+    # 1. Delete the rendered clip mp4
+    clip_p = Path(clip.get("path", ""))
+    if clip_p.exists():
+        try:
+            clip_p.unlink()
+        except Exception:
+            pass
+
+    # Delete corresponding .ass file
+    ass_p = clip_p.with_suffix(".ass")
+    if ass_p.exists():
+        try:
+            ass_p.unlink()
+        except Exception:
+            pass
+
+    # 2. Check if all clips for this source are uploaded
+    sid = clip.get("source")
+    if sid and store:
+        source_clips = [c for c in store.d.get("clips", []) if c.get("source") == sid]
+        if source_clips and all(c.get("status") == "scheduled" for c in source_clips):
+            # Delete downloaded source video
+            for ext in (".mp4", ".mkv", ".webm", ".mov", ".m4a"):
+                down_p = Path("downloads") / f"{sid}{ext}"
+                if down_p.exists():
+                    try:
+                        down_p.unlink()
+                    except Exception:
+                        pass
+            # Remove output directory for this source if empty
+            out_dir = Path("output") / sid
+            if out_dir.exists():
+                try:
+                    shutil.rmtree(out_dir, ignore_errors=True)
+                except Exception:
+                    pass
+
+
 def upload_single_clip(clip_id, cfg, store):
     from store import next_free_slot
     clip = next((c for c in store.d.get("clips", []) if c["id"] == clip_id), None)
@@ -79,6 +122,7 @@ def upload_single_clip(clip_id, cfg, store):
     clip["video_id"] = vid
     clip["status"] = "scheduled"
     store.save()
+    cleanup_after_upload(clip, store, cfg)
     return vid, clip["publish_at"]
 
 

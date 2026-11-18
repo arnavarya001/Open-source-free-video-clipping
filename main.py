@@ -106,6 +106,8 @@ def upload_ready(cfg, store):
             continue
         c["status"] = "scheduled"
         store.save()
+        from uploader import cleanup_after_upload
+        cleanup_after_upload(c, store, cfg)
         done += 1
         log(f"Scheduled: {c['title']}  ->  {c['publish_at']}  (https://youtu.be/{c['video_id']})")
     return done

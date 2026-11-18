@@ -884,7 +884,15 @@ HTML_PAGE = """<!DOCTYPE html>
             return `
               <div class="clip-card" style="${isScheduled ? 'border-color: #22c55e;' : ''}">
                 <div class="video-wrap">
-                  <video controls preload="metadata" playsinline src="${videoUrl}"></video>
+                  ${isScheduled
+                    ? `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center; background: radial-gradient(circle at center, #1e293b, #0b0f19);">
+                        <div style="font-size: 40px; margin-bottom: 8px;">🎬</div>
+                        <div style="color: #4ade80; font-weight: 700; font-size: 14px;">Uploaded to YouTube</div>
+                        <div style="color: var(--muted); font-size: 11px; margin-top: 4px;">Local MP4 deleted to save disk space.</div>
+                        <a href="${ytLink}" target="_blank" class="btn btn-yt btn-sm" style="margin-top: 14px;">▶️ Watch Video ↗</a>
+                      </div>`
+                    : `<video controls preload="metadata" playsinline src="${videoUrl}"></video>`
+                  }
                 </div>
                 <div class="clip-body">
                   ${c.hook ? `<div class="clip-hook">Hook: ${c.hook}</div>` : ''}
@@ -900,7 +908,7 @@ HTML_PAGE = """<!DOCTYPE html>
                         📅 Auto-Publishes: ${scheduledTime}
                       </div>
                       <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">
-                        (Private on YouTube until publish time)
+                        (Scheduled & Private on YouTube until publish time)
                       </div>
                     </div>
                   ` : `
@@ -910,11 +918,11 @@ HTML_PAGE = """<!DOCTYPE html>
                   `}
 
                   <div class="clip-footer" style="flex-wrap: wrap;">
-                    <a href="${videoUrl}" download class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;">⬇️ Save</a>
                     ${isScheduled
-                      ? `<a href="${ytLink}" target="_blank" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">▶️ Watch Link ↗</a>
+                      ? `<a href="${ytLink}" target="_blank" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">▶️ Watch on YouTube ↗</a>
                          <a href="${studioLink}" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;" title="Open in YouTube Studio">⚙️ Studio ↗</a>`
-                      : `<button id="btn-upload-${c.id}" onclick="uploadClip('${c.id}')" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">🚀 Schedule</button>`
+                      : `<a href="${videoUrl}" download class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;">⬇️ Save MP4</a>
+                         <button id="btn-upload-${c.id}" onclick="uploadClip('${c.id}')" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">🚀 Schedule</button>`
                     }
                   </div>
                 </div>
