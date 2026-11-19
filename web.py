@@ -489,19 +489,24 @@ HTML_PAGE = """<!DOCTYPE html>
           <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">Clips count</label>
           <input type="number" id="clips-count" min="1" max="15" value="5" />
         </div>
-        <div style="min-width: 220px;">
+        <div style="min-width: 250px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <label style="font-size: 13px; color: var(--muted); display: block;">🎵 Background Music</label>
             <a href="javascript:void(0)" onclick="openBgmModal()" style="font-size: 11px; color: #818cf8; text-decoration: none; font-weight: 600;">+ Add YT Song</a>
           </div>
-          <select id="bgm-mood" style="background: #111827; border: 1px solid var(--border); color: #f8fafc; border-radius: 6px; padding: 9px 12px; font-size: 13px; width: 100%; outline: none; cursor: pointer;">
-            <option value="auto">✨ Auto AI Mood Selection</option>
-            <option value="motivational">🔥 Motivational (Piano & Strings)</option>
-            <option value="dramatic">⚡ Dramatic (Cinematic Suspense)</option>
-            <option value="chill">☕ Chill (Calm Lofi)</option>
-            <option value="energetic">🚀 Energetic (Upbeat Beat)</option>
-            <option value="none">🚫 No BGM (Speech Only)</option>
-          </select>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="bgm-mood" onchange="onBgmSelectChange()" style="flex: 1; background: #111827; border: 1px solid var(--border); color: #f8fafc; border-radius: 6px; padding: 9px 12px; font-size: 13px; outline: none; cursor: pointer;">
+              <option value="auto">✨ Auto AI Mood Selection</option>
+              <option value="motivational">🔥 Motivational (Piano & Strings)</option>
+              <option value="dramatic">⚡ Dramatic (Cinematic Suspense)</option>
+              <option value="chill">☕ Chill (Calm Lofi)</option>
+              <option value="energetic">🚀 Energetic (Upbeat Beat)</option>
+              <option value="none">🚫 No BGM (Speech Only)</option>
+            </select>
+            <button type="button" id="btn-bgm-play" onclick="toggleBgmPreview()" class="btn btn-secondary" style="padding: 9px 12px; font-size: 12.5px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;" title="Listen to background sound">
+              <span id="bgm-play-icon">▶</span> <span id="bgm-play-text">Listen</span>
+            </button>
+          </div>
         </div>
         <div style="margin-bottom: 10px;">
           <label class="checkbox-label">
@@ -611,6 +616,13 @@ HTML_PAGE = """<!DOCTYPE html>
           <input type="text" id="bgm-track-name" placeholder="my_track" style="width: 100%; box-sizing: border-box;" />
         </div>
       </div>
+
+      <div style="margin: 14px 0;">
+        <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px;">Available Tracks in Library (Click ▶ to listen):</label>
+        <div id="bgm-library-preview" style="max-height: 120px; overflow-y: auto; background: #0c101b; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
       <div id="bgm-status-msg" style="font-size: 13px; margin-bottom: 14px; display: none; color: #818cf8;"></div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-secondary" onclick="closeBgmModal()">Cancel</button>
@@ -693,9 +705,82 @@ HTML_PAGE = """<!DOCTYPE html>
       document.getElementById('yt-modal').style.display = 'none';
     }
 
+    let currentPlayingTrack = null;
+    const bgmAudio = new Audio();
+    bgmAudio.volume = 0.8;
+
+    bgmAudio.onended = () => { stopBgmPlayback(); };
+    bgmAudio.onerror = () => { stopBgmPlayback(); };
+
+    function stopBgmPlayback() {
+      bgmAudio.pause();
+      currentPlayingTrack = null;
+      const playIcon = document.getElementById('bgm-play-icon');
+      const playText = document.getElementById('bgm-play-text');
+      if (playIcon) playIcon.innerText = "▶";
+      if (playText) playText.innerText = "Listen";
+      const btn = document.getElementById('btn-bgm-play');
+      if (btn) btn.classList.remove('btn-primary');
+      document.querySelectorAll('.modal-track-play').forEach(b => { b.innerText = "▶"; });
+    }
+
+    function playTrack(trackName) {
+      if (!trackName || trackName === 'none') {
+        alert("Koi background sound selected nahi hai!");
+        return;
+      }
+      let trackToPlay = trackName;
+      if (trackToPlay === 'auto') {
+        trackToPlay = 'motivational';
+      }
+
+      if (currentPlayingTrack === trackToPlay) {
+        stopBgmPlayback();
+        return;
+      }
+
+      bgmAudio.src = '/assets/bgm/' + trackToPlay + '.mp3';
+      bgmAudio.play().then(() => {
+        currentPlayingTrack = trackToPlay;
+        const playIcon = document.getElementById('bgm-play-icon');
+        const playText = document.getElementById('bgm-play-text');
+        if (playIcon) playIcon.innerText = "⏸";
+        if (playText) playText.innerText = "Stop (" + trackToPlay + ")";
+        const btn = document.getElementById('btn-bgm-play');
+        if (btn) btn.classList.add('btn-primary');
+
+        document.querySelectorAll('.modal-track-play').forEach(b => {
+          if (b.dataset.track === trackToPlay) b.innerText = "⏸";
+          else b.innerText = "▶";
+        });
+      }).catch(err => {
+        console.error("Audio playback error", err);
+        stopBgmPlayback();
+      });
+    }
+
+    function toggleBgmPreview() {
+      const select = document.getElementById('bgm-mood');
+      const val = select ? select.value : 'auto';
+      playTrack(val);
+    }
+
+    function onBgmSelectChange() {
+      if (currentPlayingTrack) {
+        const select = document.getElementById('bgm-mood');
+        const val = select ? select.value : 'auto';
+        if (val === 'none') {
+          stopBgmPlayback();
+        } else {
+          playTrack(val);
+        }
+      }
+    }
+
     function openBgmModal() {
       document.getElementById('bgm-modal').style.display = 'flex';
       document.getElementById('bgm-status-msg').style.display = 'none';
+      loadBgmList();
     }
 
     function closeBgmModal() {
@@ -762,6 +847,18 @@ HTML_PAGE = """<!DOCTYPE html>
           html += `<option value="none">🚫 No BGM (Speech Only)</option>`;
           select.innerHTML = html;
           select.value = currentVal;
+
+          const libEl = document.getElementById('bgm-library-preview');
+          if (libEl && d.tracks) {
+            libEl.innerHTML = d.tracks.map(t => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${t}</span>
+                <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 2px 9px; font-size: 11px;">
+                  ${currentPlayingTrack === t ? '⏸' : '▶'}
+                </button>
+              </div>
+            `).join('');
+          }
         }
       } catch (e) {
         console.error("loadBgmList error", e);
@@ -1106,7 +1203,12 @@ class StudioHandler(BaseHTTPRequestHandler):
             return
 
         size = path.stat().st_size
-        mime = "video/mp4" if path.suffix == ".mp4" else "application/octet-stream"
+        if path.suffix == ".mp4":
+            mime = "video/mp4"
+        elif path.suffix in (".mp3", ".m4a"):
+            mime = "audio/mpeg"
+        else:
+            mime = "application/octet-stream"
         range_header = self.headers.get("Range")
 
         try:
@@ -1189,7 +1291,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json({"tracks": sorted(tracks)})
             return
 
-        if path.startswith("/output/") or path.startswith("/downloads/") or path.startswith("/inbox/"):
+        if path.startswith("/output/") or path.startswith("/downloads/") or path.startswith("/inbox/") or path.startswith("/assets/"):
             clean_path = urllib.parse.unquote(path.lstrip("/"))
             self.serve_static_file(clean_path)
             return
