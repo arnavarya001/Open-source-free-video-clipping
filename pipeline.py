@@ -311,6 +311,9 @@ def get_bgm_track(mood, cfg):
         cand = base_dir / f"{m}.mp3"
         if cand.exists():
             return cand
+    any_tracks = sorted(base_dir.glob("*.mp3"))
+    if any_tracks:
+        return any_tracks[0]
     return None
 
 

@@ -796,9 +796,9 @@ HTML_PAGE = """<!DOCTYPE html>
       const btnDel = document.getElementById('btn-bgm-delete');
       if (!select || !btnDel) return;
       const val = select.value;
-      const standardMoods = ['auto', 'motivational', 'dramatic', 'chill', 'energetic', 'none'];
-      if (!standardMoods.includes(val)) {
+      if (val && val !== 'auto' && val !== 'none') {
         btnDel.style.display = 'inline-flex';
+        btnDel.title = "Delete '" + val + "' from library";
       } else {
         btnDel.style.display = 'none';
       }
@@ -808,8 +808,8 @@ HTML_PAGE = """<!DOCTYPE html>
       const select = document.getElementById('bgm-mood');
       if (!select) return;
       const val = select.value;
-      if (!val || ['auto', 'motivational', 'dramatic', 'chill', 'energetic', 'none'].includes(val)) {
-        alert("Sirf custom downloaded tracks ko delete kiya ja sakta hai!");
+      if (!val || val === 'auto' || val === 'none') {
+        alert("Pehle koi audio track select karein!");
         return;
       }
       await deleteTrack(val);
@@ -871,42 +871,44 @@ HTML_PAGE = """<!DOCTYPE html>
           if (!select) return;
           const currentVal = selectTrack || select.value;
           const standardMoods = ['motivational', 'dramatic', 'chill', 'energetic'];
-          let html = `
-            <option value="auto">✨ Auto AI Mood Selection</option>
-            <option value="motivational">🔥 Motivational (Piano & Strings)</option>
-            <option value="dramatic">⚡ Dramatic (Cinematic Suspense)</option>
-            <option value="chill">☕ Chill (Calm Lofi)</option>
-            <option value="energetic">🚀 Energetic (Upbeat Beat)</option>
-          `;
+          const trackLabels = {
+            'motivational': '🔥 Motivational (Piano & Strings)',
+            'dramatic': '⚡ Dramatic (Cinematic Suspense)',
+            'chill': '☕ Chill (Calm Lofi)',
+            'energetic': '🚀 Energetic (Upbeat Beat)'
+          };
+          let html = `<option value="auto">✨ Auto AI Mood Selection</option>`;
           d.tracks.forEach(t => {
-            if (!standardMoods.includes(t)) {
-              html += `<option value="${t}">🎵 ${t.toUpperCase()}</option>`;
-            }
+            const label = trackLabels[t] || `🎵 ${t.toUpperCase()}`;
+            html += `<option value="${t}">${label}</option>`;
           });
           html += `<option value="none">🚫 No BGM (Speech Only)</option>`;
           select.innerHTML = html;
-          select.value = currentVal;
+          select.value = d.tracks.includes(currentVal) ? currentVal : (currentVal === 'none' ? 'none' : 'auto');
           updateDeleteButtonVisibility();
 
           const libEl = document.getElementById('bgm-library-preview');
-          if (libEl && d.tracks) {
-            libEl.innerHTML = d.tracks.map(t => {
-              const isDefault = standardMoods.includes(t);
-              return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${t}</span>
-                    ${isDefault ? '<span style="font-size: 10px; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: var(--muted);">Built-in</span>' : '<span style="font-size: 10px; background: rgba(129,140,248,0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">Custom</span>'}
+          if (libEl) {
+            if (!d.tracks || d.tracks.length === 0) {
+              libEl.innerHTML = '<div style="color: var(--muted); font-size: 12.5px; padding: 10px 0; text-align: center;">Koi audio tracks nahi hain. Upar se naya gaana add karein!</div>';
+            } else {
+              libEl.innerHTML = d.tracks.map(t => {
+                const label = trackLabels[t] || t;
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${label}</span>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                      <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 3px 9px; font-size: 11px;">
+                        ${currentPlayingTrack === t ? '⏸ Stop' : '▶ Listen'}
+                      </button>
+                      <button type="button" class="btn btn-danger btn-sm" onclick="deleteTrack('${t}')" style="padding: 3px 8px; font-size: 11px;" title="Delete this sound">🗑️ Delete</button>
+                    </div>
                   </div>
-                  <div style="display: flex; gap: 6px; align-items: center;">
-                    <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 3px 9px; font-size: 11px;">
-                      ${currentPlayingTrack === t ? '⏸' : '▶'}
-                    </button>
-                    ${!isDefault ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteTrack('${t}')" style="padding: 3px 8px; font-size: 11px;" title="Delete this custom sound">🗑️ Delete</button>` : ''}
-                  </div>
-                </div>
-              `;
-            }).join('');
+                `;
+              }).join('');
+            }
           }
         }
       } catch (e) {
@@ -1511,9 +1513,6 @@ class StudioHandler(BaseHTTPRequestHandler):
             name = str(data.get("name", "")).strip().lower()
             if not name:
                 self.send_json({"ok": False, "error": "Track name zaroori hai"}, 400)
-                return
-            if name in ["motivational", "dramatic", "chill", "energetic"]:
-                self.send_json({"ok": False, "error": "Default system tracks delete nahi kiye ja sakte."}, 400)
                 return
             base_dir = Path(__file__).resolve().parent / "assets" / "bgm"
             target = base_dir / f"{name}.mp3"
