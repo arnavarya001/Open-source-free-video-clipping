@@ -92,7 +92,7 @@ def cleanup_after_upload(clip, store, cfg=None):
     sid = clip.get("source")
     if sid and store:
         source_clips = [c for c in store.d.get("clips", []) if c.get("source") == sid]
-        if source_clips and all(c.get("status") == "scheduled" for c in source_clips):
+        if source_clips and all(c.get("status") in ("scheduled", "uploaded") for c in source_clips):
             # Delete downloaded source video
             for ext in (".mp4", ".mkv", ".webm", ".mov", ".m4a"):
                 down_p = Path("downloads") / f"{sid}{ext}"
@@ -110,34 +110,46 @@ def cleanup_after_upload(clip, store, cfg=None):
                     pass
 
 
-def upload_single_clip(clip_id, cfg, store):
+def upload_single_clip(clip_id, cfg, store, mode="schedule"):
     from store import next_free_slot
     clip = next((c for c in store.d.get("clips", []) if c["id"] == clip_id), None)
     if not clip:
         raise ValueError(f"Clip {clip_id} nahi mili.")
     service = get_service()
-    if not clip.get("publish_at"):
-        clip["publish_at"] = next_free_slot(cfg, store.taken_slots())
-    vid = upload(service, clip, cfg)
+    if mode == "schedule":
+        if not clip.get("publish_at"):
+            clip["publish_at"] = next_free_slot(cfg, store.taken_slots())
+    else:
+        clip["publish_at"] = None
+    vid = upload(service, clip, cfg, mode=mode)
     clip["video_id"] = vid
-    clip["status"] = "scheduled"
+    clip["status"] = "uploaded" if mode == "now" else "scheduled"
     store.save()
     cleanup_after_upload(clip, store, cfg)
-    return vid, clip["publish_at"]
+    return vid, clip.get("publish_at")
 
 
-def upload(service, clip, cfg):
-    up = cfg["upload"]
+def upload(service, clip, cfg, mode="schedule"):
+    up = cfg.get("upload", {})
     tags = list(dict.fromkeys(up.get("default_tags", []) + clip.get("hashtags", [])))
     hashtags = " ".join("#" + t.replace(" ", "") for t in ["Shorts"] + clip.get("hashtags", [])[:4])
     desc = f"{clip.get('description', '')}\n\n{hashtags}".strip()
-    publish = datetime.fromisoformat(clip["publish_at"]).astimezone(timezone.utc)
+
+    status_dict = {
+        "selfDeclaredMadeForKids": up.get("made_for_kids", False)
+    }
+    if mode == "now":
+        status_dict["privacyStatus"] = up.get("instant_privacy", "public")
+    else:
+        # mode == "schedule"
+        publish = datetime.fromisoformat(clip["publish_at"]).astimezone(timezone.utc)
+        status_dict["privacyStatus"] = "private"
+        status_dict["publishAt"] = publish.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     body = {
         "snippet": {"title": clip["title"][:95], "description": desc,
                     "tags": tags[:15], "categoryId": up.get("category_id", "22")},
-        "status": {"privacyStatus": "private",
-                   "publishAt": publish.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                   "selfDeclaredMadeForKids": up.get("made_for_kids", False)},
+        "status": status_dict,
     }
     media = MediaFileUpload(clip["path"], mimetype="video/mp4", chunksize=-1, resumable=True)
     req = service.videos().insert(part="snippet,status", body=body, media_body=media)

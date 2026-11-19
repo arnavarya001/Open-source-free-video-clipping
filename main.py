@@ -83,17 +83,20 @@ def add_input(cfg, store, arg):
     return process_source(cfg, store, sid, path)
 
 
-def upload_ready(cfg, store):
-    from uploader import get_service, upload, QuotaExceeded
+def upload_ready(cfg, store, mode="schedule"):
+    from uploader import get_service, upload, QuotaExceeded, cleanup_after_upload
     ready = store.clips("ready")
     if not ready:
         return 0
     service = get_service()
     done = 0
     for c in ready:
-        c["publish_at"] = next_free_slot(cfg, store.taken_slots())
+        if mode == "schedule":
+            c["publish_at"] = next_free_slot(cfg, store.taken_slots())
+        else:
+            c["publish_at"] = None
         try:
-            c["video_id"] = upload(service, c, cfg)
+            c["video_id"] = upload(service, c, cfg, mode=mode)
         except QuotaExceeded:
             c["publish_at"] = None
             store.save()
@@ -105,12 +108,12 @@ def upload_ready(cfg, store):
             store.save()
             log("Upload fail:", c["id"], e)
             continue
-        c["status"] = "scheduled"
+        c["status"] = "uploaded" if mode == "now" else "scheduled"
         store.save()
-        from uploader import cleanup_after_upload
         cleanup_after_upload(c, store, cfg)
         done += 1
-        log(f"Scheduled: {c['title']}  ->  {c['publish_at']}  (https://youtu.be/{c['video_id']})")
+        label = "Uploaded Now" if mode == "now" else f"Scheduled -> {c['publish_at']}"
+        log(f"{label}: {c['title']}  (https://youtu.be/{c['video_id']})")
     return done
 
 

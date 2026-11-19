@@ -543,9 +543,10 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="card">
       <div class="card-title">
         <span>Generated Shorts Library</span>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <a href="https://studio.youtube.com/channel/mine/videos/short" target="_blank" class="btn btn-secondary btn-sm">🎬 Open YouTube Studio ↗</a>
-          <button class="btn btn-yt btn-sm" onclick="uploadAllReady()">🚀 Schedule All Ready Clips</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <a href="https://studio.youtube.com/channel/mine/videos/short" target="_blank" class="btn btn-secondary btn-sm">🎬 YouTube Studio ↗</a>
+          <button class="btn btn-primary btn-sm" onclick="uploadAllReady('now')" style="background: #2563eb;" title="Publish all ready clips immediately as Public">⚡ Upload All Now</button>
+          <button class="btn btn-yt btn-sm" onclick="uploadAllReady('schedule')" title="Schedule all ready clips across optimal future time slots">📅 Schedule All</button>
           <button class="btn btn-secondary btn-sm" onclick="fetchStatus()">🔄 Refresh</button>
         </div>
       </div>
@@ -1061,53 +1062,56 @@ HTML_PAGE = """<!DOCTYPE html>
       await fetch('/api/open_folder');
     }
 
-    async function uploadClip(clipId) {
+    async function uploadClip(clipId, mode = 'schedule') {
       if (!ytConnected) {
         openYouTubeModal();
         return;
       }
-      if (!confirm("Is clip ko YouTube pe upload schedule karna chahte hain?")) return;
+      const actionName = mode === 'now' ? 'turant YouTube pe Public upload' : 'future time slot ke liye Schedule';
+      if (!confirm(`Kya aap is clip ko ${actionName} karna chahte hain?`)) return;
       
-      const btn = document.getElementById('btn-upload-' + clipId);
-      if (btn) {
-        btn.disabled = true;
-        btn.innerText = "⏳ Uploading...";
-      }
+      const btnNow = document.getElementById('btn-now-' + clipId);
+      const btnSched = document.getElementById('btn-sched-' + clipId);
+      if (btnNow) { btnNow.disabled = true; }
+      if (btnSched) { btnSched.disabled = true; }
+      const activeBtn = mode === 'now' ? btnNow : btnSched;
+      if (activeBtn) activeBtn.innerText = "⏳ Uploading...";
 
       try {
         const res = await fetch('/api/upload_clip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clip_id: clipId })
+          body: JSON.stringify({ clip_id: clipId, mode })
         });
         const data = await res.json();
         if (data.ok) {
-          alert("✅ Upload ho gaya aur scheduled ho gaya!");
+          const msg = mode === 'now' ? '✅ Video YouTube par Public upload ho gaya!' : '✅ Video schedule ho gaya!';
+          alert(msg);
           fetchStatus();
         } else {
           alert("Upload error: " + (data.error || "Unknown"));
-          if (btn) {
-            btn.disabled = false;
-            btn.innerText = "🚀 Schedule";
-          }
         }
       } catch (e) {
         alert("Upload error: " + e.message);
-        if (btn) {
-          btn.disabled = false;
-          btn.innerText = "🚀 Schedule";
-        }
+      } finally {
+        if (btnNow) { btnNow.disabled = false; btnNow.innerText = "⚡ Upload Now"; }
+        if (btnSched) { btnSched.disabled = false; btnSched.innerText = "📅 Schedule"; }
       }
     }
 
-    async function uploadAllReady() {
+    async function uploadAllReady(mode = 'schedule') {
       if (!ytConnected) {
         openYouTubeModal();
         return;
       }
-      if (!confirm("Saare ready clips ko YouTube pe schedule karke upload karein?")) return;
+      const actionName = mode === 'now' ? 'turant YouTube pe Public upload' : 'time slots me Schedule';
+      if (!confirm(`Saare ready clips ko ${actionName} karna chahte hain?`)) return;
       try {
-        const res = await fetch('/api/upload_all', { method: 'POST' });
+        const res = await fetch('/api/upload_all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode })
+        });
         const d = await res.json();
         alert(d.message || "Upload process start ho gaya!");
         fetchStatus();
@@ -1182,17 +1186,19 @@ HTML_PAGE = """<!DOCTYPE html>
           grid.innerHTML = clips.map((c, idx) => {
             const videoUrl = '/' + c.path;
             const tags = (c.hashtags || []).map(t => '#' + t).join(' ');
+            const isUploaded = c.status === 'uploaded' || c.status === 'scheduled';
             const isScheduled = c.status === 'scheduled';
+            const isLive = c.status === 'uploaded';
             const scheduledTime = c.publish_at ? formatScheduleTime(c.publish_at) : '';
             const ytLink = c.video_id ? `https://youtu.be/${c.video_id}` : '';
             const studioLink = c.video_id ? `https://studio.youtube.com/video/${c.video_id}/edit` : '';
             return `
-              <div class="clip-card" style="${isScheduled ? 'border-color: #22c55e;' : ''}">
+              <div class="clip-card" style="${isUploaded ? 'border-color: #22c55e;' : ''}">
                 <div class="video-wrap">
-                  ${isScheduled
+                  ${isUploaded
                     ? `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center; background: radial-gradient(circle at center, #1e293b, #0b0f19);">
                         <div style="font-size: 40px; margin-bottom: 8px;">🎬</div>
-                        <div style="color: #4ade80; font-weight: 700; font-size: 14px;">Uploaded to YouTube</div>
+                        <div style="color: #4ade80; font-weight: 700; font-size: 14px;">${isLive ? 'Live on YouTube' : 'Scheduled on YouTube'}</div>
                         <div style="color: var(--muted); font-size: 11px; margin-top: 4px;">Local MP4 deleted to save disk space.</div>
                         <a href="${ytLink}" target="_blank" class="btn btn-yt btn-sm" style="margin-top: 14px;">▶️ Watch Video ↗</a>
                       </div>`
@@ -1207,17 +1213,23 @@ HTML_PAGE = """<!DOCTYPE html>
                   <div class="clip-title">${c.title || 'Clip ' + (idx + 1)}</div>
                   <div class="clip-tags">${tags}</div>
                   
-                  ${isScheduled ? `
+                  ${isUploaded ? `
                     <div style="background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
                       <div style="color: #4ade80; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                        <span>✓</span> UPLOADED TO YOUTUBE
+                        <span>✓</span> ${isLive ? 'LIVE ON YOUTUBE (PUBLIC)' : 'SCHEDULED ON YOUTUBE'}
                       </div>
+                      ${isScheduled ? `
                       <div style="font-size: 13px; font-weight: 600; color: #fff; margin-top: 3px;">
                         📅 Auto-Publishes: ${scheduledTime}
                       </div>
                       <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">
-                        (Scheduled & Private on YouTube until publish time)
+                        (Private on YouTube until publish time)
                       </div>
+                      ` : `
+                      <div style="font-size: 12px; color: #94a3b8; margin-top: 3px;">
+                        Video is live on your channel!
+                      </div>
+                      `}
                     </div>
                   ` : `
                     <div style="font-size: 12px; margin-bottom: 8px; color: var(--warning); font-weight: 600;">
@@ -1225,12 +1237,13 @@ HTML_PAGE = """<!DOCTYPE html>
                     </div>
                   `}
 
-                  <div class="clip-footer" style="flex-wrap: wrap;">
-                    ${isScheduled
+                  <div class="clip-footer" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    ${isUploaded
                       ? `<a href="${ytLink}" target="_blank" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">▶️ Watch on YouTube ↗</a>
                          <a href="${studioLink}" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;" title="Open in YouTube Studio">⚙️ Studio ↗</a>`
-                      : `<a href="${videoUrl}" download class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;">⬇️ Save MP4</a>
-                         <button id="btn-upload-${c.id}" onclick="uploadClip('${c.id}')" class="btn btn-yt btn-sm" style="flex: 1; justify-content: center;">🚀 Schedule</button>`
+                      : `<a href="${videoUrl}" download class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center; min-width: 65px;" title="Download MP4 to computer">⬇️ MP4</a>
+                         <button id="btn-now-${c.id}" onclick="uploadClip('${c.id}', 'now')" class="btn btn-primary btn-sm" style="flex: 1.2; justify-content: center; background: #2563eb; min-width: 95px;" title="Upload and publish immediately as Public">⚡ Upload Now</button>
+                         <button id="btn-sched-${c.id}" onclick="uploadClip('${c.id}', 'schedule')" class="btn btn-yt btn-sm" style="flex: 1.2; justify-content: center; min-width: 95px;" title="Schedule for next free time slot">📅 Schedule</button>`
                     }
                   </div>
                 </div>
@@ -1466,17 +1479,27 @@ class StudioHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(self.rfile.read(length))
                 clip_id = data.get("clip_id")
-                vid, slot = uploader.upload_single_clip(clip_id, self.cfg, self.store)
-                self.send_json({"ok": True, "video_id": vid, "publish_at": slot})
+                mode = data.get("mode", "schedule")  # "now" or "schedule"
+                vid, slot = uploader.upload_single_clip(clip_id, self.cfg, self.store, mode=mode)
+                self.send_json({"ok": True, "video_id": vid, "publish_at": slot, "mode": mode})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
 
         if path == "/api/upload_all":
+            length = int(self.headers.get("Content-Length", 0))
+            mode = "schedule"
+            if length > 0:
+                try:
+                    data = json.loads(self.rfile.read(length))
+                    mode = data.get("mode", "schedule")
+                except Exception:
+                    pass
             try:
                 import main
-                uploaded = main.upload_ready(self.cfg, self.store)
-                self.send_json({"ok": True, "message": f"{uploaded} clips scheduled successfully!"})
+                uploaded = main.upload_ready(self.cfg, self.store, mode=mode)
+                action_text = "uploaded (Public)" if mode == "now" else "scheduled"
+                self.send_json({"ok": True, "message": f"{uploaded} clips {action_text} successfully!", "count": uploaded})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
