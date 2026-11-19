@@ -146,7 +146,9 @@ def upload(service, clip, cfg):
         while resp is None:
             _, resp = req.next_chunk()
     except HttpError as e:
-        if b"quotaExceeded" in e.content or b"uploadLimitExceeded" in e.content:
-            raise QuotaExceeded(str(e))
+        if b"quotaExceeded" in e.content:
+            raise QuotaExceeded("YouTube API daily quota exceed ho gayi hai (10,000 units limit). Yeh kal midnight PT reset hogi.")
+        if b"uploadLimitExceeded" in e.content:
+            raise QuotaExceeded("Aapke YouTube Channel ki daily upload limit reach ho chuki hai! YouTube 24 ghante me limited videos allow karta hai. Thoda wait karein (24 ghante baad reset hogi) ya 'Save MP4' se manually download karein.")
         raise
     return resp["id"]
