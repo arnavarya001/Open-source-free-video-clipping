@@ -191,6 +191,8 @@ HTML_PAGE = """<!DOCTYPE html>
     .btn-secondary:hover { background: #2e3a54; }
     .btn-yt { background: #cc0000; color: white; }
     .btn-yt:hover { background: #e60000; }
+    .btn-danger { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.35); color: #fff; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
 
     /* YouTube Banner Bar */
@@ -850,18 +852,49 @@ HTML_PAGE = """<!DOCTYPE html>
 
           const libEl = document.getElementById('bgm-library-preview');
           if (libEl && d.tracks) {
-            libEl.innerHTML = d.tracks.map(t => `
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${t}</span>
-                <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 2px 9px; font-size: 11px;">
-                  ${currentPlayingTrack === t ? '⏸' : '▶'}
-                </button>
-              </div>
-            `).join('');
+            libEl.innerHTML = d.tracks.map(t => {
+              const isDefault = standardMoods.includes(t);
+              return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${t}</span>
+                    ${isDefault ? '<span style="font-size: 10px; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: var(--muted);">Built-in</span>' : '<span style="font-size: 10px; background: rgba(129,140,248,0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">Custom</span>'}
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 2px 9px; font-size: 11px;">
+                      ${currentPlayingTrack === t ? '⏸' : '▶'}
+                    </button>
+                    ${!isDefault ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteTrack('${t}')" style="padding: 2px 8px; font-size: 11px;" title="Delete this custom sound">🗑️</button>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('');
           }
         }
       } catch (e) {
         console.error("loadBgmList error", e);
+      }
+    }
+
+    async function deleteTrack(trackName) {
+      if (!confirm("Kya aap '" + trackName + "' audio track ko library se delete karna chahte hain?")) return;
+      if (currentPlayingTrack === trackName) {
+        stopBgmPlayback();
+      }
+      try {
+        const res = await fetch('/api/delete_bgm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trackName })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          await loadBgmList();
+        } else {
+          alert("Delete error: " + (d.error || "Unknown"));
+        }
+      } catch (err) {
+        alert("Delete error: " + err.message);
       }
     }
 
@@ -1421,6 +1454,33 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "name": safe_name, "path": str(mp3_path)})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        if path == "/api/delete_bgm":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+            except Exception:
+                self.send_json({"ok": False, "error": "Invalid JSON"}, 400)
+                return
+            name = str(data.get("name", "")).strip().lower()
+            if not name:
+                self.send_json({"ok": False, "error": "Track name zaroori hai"}, 400)
+                return
+            if name in ["motivational", "dramatic", "chill", "energetic"]:
+                self.send_json({"ok": False, "error": "Default system tracks delete nahi kiye ja sakte."}, 400)
+                return
+            base_dir = Path(__file__).resolve().parent / "assets" / "bgm"
+            target = base_dir / f"{name}.mp3"
+            if target.exists() and target.is_file():
+                try:
+                    target.unlink()
+                    self.send_json({"ok": True, "name": name})
+                except Exception as e:
+                    self.send_json({"ok": False, "error": f"Delete error: {e}"}, 500)
+            else:
+                self.send_json({"ok": False, "error": f"Track '{name}' nahi mila."}, 404)
             return
 
         self.send_error(404)
