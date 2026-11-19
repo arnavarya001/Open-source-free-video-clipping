@@ -18,6 +18,11 @@ data/state.json
 data/*.tmp
 inbox/
 links.txt
+assets/bgm/*
+!assets/bgm/motivational.mp3
+!assets/bgm/dramatic.mp3
+!assets/bgm/chill.mp3
+!assets/bgm/energetic.mp3
 
 # OS & IDE
 .DS_Store
