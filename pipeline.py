@@ -274,6 +274,27 @@ def crop_filter(src, start, end, cfg):
     return f"crop={cw}:{h}:{x}:0,scale=1080:1920,setsar=1"
 
 
+def download_bgm(url, name=None):
+    """Download audio from YouTube link directly into assets/bgm/<name>.mp3"""
+    base_dir = Path(__file__).resolve().parent / "assets" / "bgm"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    vid = video_id_from_url(url)
+    if not name:
+        name = f"track_{vid}" if vid else "custom_bgm"
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name).strip("_").lower()
+    out_tmpl = str(base_dir / f"{safe_name}.%(ext)s")
+    _notify(f"Downloading background music ({safe_name}) from YouTube...")
+    run([
+        sys.executable, "-m", "yt_dlp",
+        "-x", "--audio-format", "mp3", "--audio-quality", "0",
+        "--no-playlist",
+        "-o", out_tmpl,
+        url
+    ])
+    mp3_file = base_dir / f"{safe_name}.mp3"
+    return safe_name, mp3_file
+
+
 def get_bgm_track(mood, cfg):
     bgm_cfg = cfg.get("bgm", {})
     if not bgm_cfg.get("enabled", True):

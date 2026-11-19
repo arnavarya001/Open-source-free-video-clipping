@@ -489,8 +489,11 @@ HTML_PAGE = """<!DOCTYPE html>
           <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">Clips count</label>
           <input type="number" id="clips-count" min="1" max="15" value="5" />
         </div>
-        <div style="min-width: 200px;">
-          <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">🎵 Background Music</label>
+        <div style="min-width: 220px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="font-size: 13px; color: var(--muted); display: block;">🎵 Background Music</label>
+            <a href="javascript:void(0)" onclick="openBgmModal()" style="font-size: 11px; color: #818cf8; text-decoration: none; font-weight: 600;">+ Add YT Song</a>
+          </div>
           <select id="bgm-mood" style="background: #111827; border: 1px solid var(--border); color: #f8fafc; border-radius: 6px; padding: 9px 12px; font-size: 13px; width: 100%; outline: none; cursor: pointer;">
             <option value="auto">✨ Auto AI Mood Selection</option>
             <option value="motivational">🔥 Motivational (Piano & Strings)</option>
@@ -589,6 +592,33 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- BGM Add Modal -->
+  <div class="modal-backdrop" id="bgm-modal">
+    <div class="modal">
+      <div class="modal-title">
+        <span>🎵</span> Add Background Music from YouTube
+      </div>
+      <p style="font-size: 13.5px; color: var(--muted);">
+        Kisi bhi YouTube song ya background music ka link paste karein, bot use extract karke assets me add kar dega:
+      </p>
+      <div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">YouTube Song / Music Link:</label>
+          <input type="text" id="bgm-yt-url" placeholder="https://www.youtube.com/watch?v=..." style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">Mood / Track Name (e.g. phonk, intense, sad):</label>
+          <input type="text" id="bgm-track-name" placeholder="my_track" style="width: 100%; box-sizing: border-box;" />
+        </div>
+      </div>
+      <div id="bgm-status-msg" style="font-size: 13px; margin-bottom: 14px; display: none; color: #818cf8;"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeBgmModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-download-bgm" onclick="downloadCustomBgm()">⬇️ Download & Add</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let activeTab = 'url';
     let selectedFile = null;
@@ -661,6 +691,81 @@ HTML_PAGE = """<!DOCTYPE html>
 
     function closeYouTubeModal() {
       document.getElementById('yt-modal').style.display = 'none';
+    }
+
+    function openBgmModal() {
+      document.getElementById('bgm-modal').style.display = 'flex';
+      document.getElementById('bgm-status-msg').style.display = 'none';
+    }
+
+    function closeBgmModal() {
+      document.getElementById('bgm-modal').style.display = 'none';
+    }
+
+    async function downloadCustomBgm() {
+      const url = document.getElementById('bgm-yt-url').value.trim();
+      const name = document.getElementById('bgm-track-name').value.trim();
+      const msg = document.getElementById('bgm-status-msg');
+      const btn = document.getElementById('btn-download-bgm');
+      if (!url) {
+        alert("Kripya YouTube video ya audio link daalein!");
+        return;
+      }
+      btn.disabled = true;
+      btn.innerText = "⏳ Downloading audio...";
+      msg.style.display = 'block';
+      msg.innerText = "YouTube se audio extract ho raha hai...";
+
+      try {
+        const res = await fetch('/api/download_bgm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, name })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          msg.innerText = "✅ BGM track add ho gaya: " + d.name;
+          await loadBgmList(d.name);
+          setTimeout(closeBgmModal, 1500);
+        } else {
+          msg.innerText = "Error: " + d.error;
+        }
+      } catch (e) {
+        msg.innerText = "Download error: " + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "⬇️ Download & Add";
+      }
+    }
+
+    async function loadBgmList(selectTrack) {
+      try {
+        const res = await fetch('/api/bgm_list');
+        const d = await res.json();
+        if (d.tracks) {
+          const select = document.getElementById('bgm-mood');
+          if (!select) return;
+          const currentVal = selectTrack || select.value;
+          const standardMoods = ['motivational', 'dramatic', 'chill', 'energetic'];
+          let html = `
+            <option value="auto">✨ Auto AI Mood Selection</option>
+            <option value="motivational">🔥 Motivational (Piano & Strings)</option>
+            <option value="dramatic">⚡ Dramatic (Cinematic Suspense)</option>
+            <option value="chill">☕ Chill (Calm Lofi)</option>
+            <option value="energetic">🚀 Energetic (Upbeat Beat)</option>
+          `;
+          d.tracks.forEach(t => {
+            if (!standardMoods.includes(t)) {
+              html += `<option value="${t}">🎵 ${t.toUpperCase()}</option>`;
+            }
+          });
+          html += `<option value="none">🚫 No BGM (Speech Only)</option>`;
+          select.innerHTML = html;
+          select.value = currentVal;
+        }
+      } catch (e) {
+        console.error("loadBgmList error", e);
+      }
     }
 
     async function startOAuthFlow() {
@@ -966,6 +1071,7 @@ HTML_PAGE = """<!DOCTYPE html>
     // Auto poll status
     fetchStatus();
     checkYouTubeStatus();
+    loadBgmList();
     setInterval(fetchStatus, 1800);
     setInterval(checkYouTubeStatus, 4000);
   </script>
@@ -1077,6 +1183,12 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_json({"ok": True})
             return
 
+        if path == "/api/bgm_list":
+            base_dir = Path(__file__).resolve().parent / "assets" / "bgm"
+            tracks = [f.stem for f in base_dir.glob("*.mp3")] if base_dir.exists() else []
+            self.send_json({"tracks": sorted(tracks)})
+            return
+
         if path.startswith("/output/") or path.startswith("/downloads/") or path.startswith("/inbox/"):
             clean_path = urllib.parse.unquote(path.lstrip("/"))
             self.serve_static_file(clean_path)
@@ -1184,6 +1296,27 @@ class StudioHandler(BaseHTTPRequestHandler):
                 import main
                 uploaded = main.upload_ready(self.cfg, self.store)
                 self.send_json({"ok": True, "message": f"{uploaded} clips scheduled successfully!"})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        if path == "/api/download_bgm":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+            except Exception:
+                self.send_json({"ok": False, "error": "Invalid JSON"}, 400)
+                return
+            url = data.get("url", "").strip()
+            name = data.get("name", "").strip()
+            if not url:
+                self.send_json({"ok": False, "error": "YouTube song URL zaroori hai"}, 400)
+                return
+            try:
+                import pipeline
+                safe_name, mp3_path = pipeline.download_bgm(url, name)
+                self.send_json({"ok": True, "name": safe_name, "path": str(mp3_path)})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, 500)
             return
