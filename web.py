@@ -491,10 +491,10 @@ HTML_PAGE = """<!DOCTYPE html>
           <label style="font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px;">Clips count</label>
           <input type="number" id="clips-count" min="1" max="15" value="5" />
         </div>
-        <div style="min-width: 250px;">
+        <div style="min-width: 280px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <label style="font-size: 13px; color: var(--muted); display: block;">🎵 Background Music</label>
-            <a href="javascript:void(0)" onclick="openBgmModal()" style="font-size: 11px; color: #818cf8; text-decoration: none; font-weight: 600;">+ Add YT Song</a>
+            <a href="javascript:void(0)" onclick="openBgmModal()" style="font-size: 11px; color: #818cf8; text-decoration: none; font-weight: 600;">⚙️ Manage / Add Sounds</a>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <select id="bgm-mood" onchange="onBgmSelectChange()" style="flex: 1; background: #111827; border: 1px solid var(--border); color: #f8fafc; border-radius: 6px; padding: 9px 12px; font-size: 13px; outline: none; cursor: pointer;">
@@ -507,6 +507,9 @@ HTML_PAGE = """<!DOCTYPE html>
             </select>
             <button type="button" id="btn-bgm-play" onclick="toggleBgmPreview()" class="btn btn-secondary" style="padding: 9px 12px; font-size: 12.5px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;" title="Listen to background sound">
               <span id="bgm-play-icon">▶</span> <span id="bgm-play-text">Listen</span>
+            </button>
+            <button type="button" id="btn-bgm-delete" onclick="deleteCurrentBgm()" class="btn btn-danger" style="display: none; padding: 9px 12px; font-size: 12.5px; white-space: nowrap; align-items: center; gap: 5px;" title="Delete this custom sound">
+              <span>🗑️</span> <span>Delete Track</span>
             </button>
           </div>
         </div>
@@ -599,36 +602,44 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- BGM Add Modal -->
+  <!-- BGM Manage & Add Modal -->
   <div class="modal-backdrop" id="bgm-modal">
-    <div class="modal">
+    <div class="modal" style="max-width: 600px;">
       <div class="modal-title">
-        <span>🎵</span> Add Background Music from YouTube
+        <span>🎵</span> Background Music Library & Downloader
       </div>
-      <p style="font-size: 13.5px; color: var(--muted);">
-        Kisi bhi YouTube song ya background music ka link paste karein, bot use extract karke assets me add kar dega:
-      </p>
-      <div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">
-        <div>
-          <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">YouTube Song / Music Link:</label>
-          <input type="text" id="bgm-yt-url" placeholder="https://www.youtube.com/watch?v=..." style="width: 100%; box-sizing: border-box;" />
+      
+      <!-- Existing library list -->
+      <div style="margin: 16px 0 20px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="font-size: 13px; font-weight: 600; color: #f1f5f9; display: block;">Tracks in Your Library (Listen & Delete):</label>
+          <span style="font-size: 11px; color: var(--muted);">Click 🗑️ to delete custom tracks</span>
         </div>
-        <div>
-          <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">Mood / Track Name (e.g. phonk, intense, sad):</label>
-          <input type="text" id="bgm-track-name" placeholder="my_track" style="width: 100%; box-sizing: border-box;" />
-        </div>
-      </div>
-
-      <div style="margin: 14px 0;">
-        <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px;">Available Tracks in Library (Click ▶ to listen):</label>
-        <div id="bgm-library-preview" style="max-height: 120px; overflow-y: auto; background: #0c101b; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;">
+        <div id="bgm-library-preview" style="max-height: 160px; overflow-y: auto; background: #0c101b; border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px;">
           <!-- Loaded dynamically -->
         </div>
       </div>
-      <div id="bgm-status-msg" style="font-size: 13px; margin-bottom: 14px; display: none; color: #818cf8;"></div>
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn btn-secondary" onclick="closeBgmModal()">Cancel</button>
-        <button class="btn btn-primary" id="btn-download-bgm" onclick="downloadCustomBgm()">⬇️ Download & Add</button>
+
+      <!-- Add New Track from YouTube -->
+      <div style="border-top: 1px solid var(--border); padding-top: 16px;">
+        <div style="font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px;">➕ Download New Track from YouTube</div>
+        <p style="font-size: 12.5px; color: var(--muted); margin-bottom: 12px;">
+          YouTube video/song link paste karein, audio extract hokar library me save ho jayega:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <input type="text" id="bgm-yt-url" placeholder="YouTube URL: https://www.youtube.com/watch?v=..." style="width: 100%; box-sizing: border-box;" />
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="bgm-track-name" placeholder="Track Name / Mood (optional)" style="flex: 1; box-sizing: border-box;" />
+            <button class="btn btn-primary" id="btn-download-bgm" onclick="downloadCustomBgm()" style="white-space: nowrap;">⬇️ Download & Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="bgm-status-msg" style="font-size: 13px; margin-top: 12px; display: none; color: #818cf8;"></div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 18px;">
+        <button class="btn btn-secondary" onclick="closeBgmModal()">Close</button>
       </div>
     </div>
   </div>
@@ -768,6 +779,7 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     function onBgmSelectChange() {
+      updateDeleteButtonVisibility();
       if (currentPlayingTrack) {
         const select = document.getElementById('bgm-mood');
         const val = select ? select.value : 'auto';
@@ -777,6 +789,30 @@ HTML_PAGE = """<!DOCTYPE html>
           playTrack(val);
         }
       }
+    }
+
+    function updateDeleteButtonVisibility() {
+      const select = document.getElementById('bgm-mood');
+      const btnDel = document.getElementById('btn-bgm-delete');
+      if (!select || !btnDel) return;
+      const val = select.value;
+      const standardMoods = ['auto', 'motivational', 'dramatic', 'chill', 'energetic', 'none'];
+      if (!standardMoods.includes(val)) {
+        btnDel.style.display = 'inline-flex';
+      } else {
+        btnDel.style.display = 'none';
+      }
+    }
+
+    async function deleteCurrentBgm() {
+      const select = document.getElementById('bgm-mood');
+      if (!select) return;
+      const val = select.value;
+      if (!val || ['auto', 'motivational', 'dramatic', 'chill', 'energetic', 'none'].includes(val)) {
+        alert("Sirf custom downloaded tracks ko delete kiya ja sakta hai!");
+        return;
+      }
+      await deleteTrack(val);
     }
 
     function openBgmModal() {
@@ -813,6 +849,7 @@ HTML_PAGE = """<!DOCTYPE html>
         if (d.ok) {
           msg.innerText = "✅ BGM track add ho gaya: " + d.name;
           await loadBgmList(d.name);
+          updateDeleteButtonVisibility();
           setTimeout(closeBgmModal, 1500);
         } else {
           msg.innerText = "Error: " + d.error;
@@ -849,22 +886,23 @@ HTML_PAGE = """<!DOCTYPE html>
           html += `<option value="none">🚫 No BGM (Speech Only)</option>`;
           select.innerHTML = html;
           select.value = currentVal;
+          updateDeleteButtonVisibility();
 
           const libEl = document.getElementById('bgm-library-preview');
           if (libEl && d.tracks) {
             libEl.innerHTML = d.tracks.map(t => {
               const isDefault = standardMoods.includes(t);
               return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-weight: 500; color: #f1f5f9; font-size: 13px;">🎵 ${t}</span>
                     ${isDefault ? '<span style="font-size: 10px; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: var(--muted);">Built-in</span>' : '<span style="font-size: 10px; background: rgba(129,140,248,0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">Custom</span>'}
                   </div>
                   <div style="display: flex; gap: 6px; align-items: center;">
-                    <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 2px 9px; font-size: 11px;">
+                    <button type="button" class="btn btn-secondary btn-sm modal-track-play" data-track="${t}" onclick="playTrack('${t}')" style="padding: 3px 9px; font-size: 11px;">
                       ${currentPlayingTrack === t ? '⏸' : '▶'}
                     </button>
-                    ${!isDefault ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteTrack('${t}')" style="padding: 2px 8px; font-size: 11px;" title="Delete this custom sound">🗑️</button>` : ''}
+                    ${!isDefault ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteTrack('${t}')" style="padding: 3px 8px; font-size: 11px;" title="Delete this custom sound">🗑️ Delete</button>` : ''}
                   </div>
                 </div>
               `;
@@ -889,7 +927,13 @@ HTML_PAGE = """<!DOCTYPE html>
         });
         const d = await res.json();
         if (d.ok) {
-          await loadBgmList();
+          const select = document.getElementById('bgm-mood');
+          if (select && select.value === trackName) {
+            select.value = 'auto';
+          }
+          await loadBgmList('auto');
+          updateDeleteButtonVisibility();
+          alert("✅ Track '" + trackName + "' successfully delete ho gaya!");
         } else {
           alert("Delete error: " + (d.error || "Unknown"));
         }
